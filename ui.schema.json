@@ -1,4 +1,13 @@
 {
-  "ui:order": ["database"],
-  "database": { "ui:widget": "file" }
+  "ui:order": [
+    "server",
+    "port",
+    "database",
+    "username",
+    "usePassword",
+    "password",
+    "askForPassword"
+  ],
+  "password": { "ui:widget": "password" },
+  "askForPassword": { "ui:widget": "hidden" }
 }

@@ -1,12 +1,12 @@
 {
-  "name": "driver-template",
-  "displayName": "Driver Template",
-  "description": "Driver Template to be used as base for new VSCode SQLTools drivers",
+  "name": "db2-sqltools",
+  "displayName": "Db2 Driver for SQL Tools",
+  "description": "",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.42.0"
   },
-  "publisher": "mtxr",
+  "publisher": "lucashancock",
   "license": "MIT",
   "repository": {},
   "bugs": {},
@@ -37,10 +37,12 @@
   "dependencies": {
     "@sqltools/base-driver": "latest",
     "@sqltools/types": "latest",
+    "ibm_db": "^3.3.0",
     "uuid": "^7.0.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.5.5",
+    "@types/ibm_db": "^3.2.0",
     "@types/node": "^14.0.9",
     "@types/vscode": "^1.42.0",
     "typescript": "^3.7.3"

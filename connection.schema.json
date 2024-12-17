@@ -1,14 +1,95 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "properties": {
-    "database": {
-      "title": "Database file",
+  "definitions": {
+    "username": {
+      "title": "Username",
       "type": "string",
       "minLength": 1
+    },
+    "usePassword": {
+      "title": "Use password",
+      "type": "string",
+      "enum": ["Ask on connect", "Save as plaintext in settings"],
+      "default": "Save as plaintext in settings"
+    },
+    "password": {
+      "title": "Password",
+      "type": "string",
+      "minLength": 1
+    },
+    "server": {
+      "title": "Hostname",
+      "type": "string",
+      "minLength": 1
+    },
+    "port": {
+      "title": "Port",
+      "type": "integer",
+      "minimum": 1
     }
   },
-  "required": [
-    "database"
-  ]
+  "properties": {
+    "connectionMethod": {
+      "title": "Connect using",
+      "type": "string",
+      "minLength": 1,
+      "default": "Server and Port"
+    },
+    "usePassword": {
+      "title": "Use password",
+      "type": "string",
+      "enum": ["Ask on connect", "Save as plaintext in settings"],
+      "default": "Save as plaintext in settings"
+    },
+    "database": {
+      "title": "Database",
+      "type": "string",
+      "minLength": 1
+    },
+    "username": {
+      "title": "Username",
+      "type": "string",
+      "minLength": 1
+    },
+    "server": {
+      "title": "Hostname",
+      "type": "string",
+      "minLength": 1
+    },
+    "port": {
+      "title": "Port",
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": ["server", "port", "username", "database"],
+  "dependencies": {
+    "usePassword": {
+      "oneOf": [
+        {
+          "properties": {
+            "usePassword": {
+              "enum": ["Ask on connect"]
+            },
+            "askForPassword": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "usePassword": {
+              "enum": ["Save as plaintext in settings"]
+            },
+            "password": {
+              "$ref": "#/definitions/password"
+            }
+          },
+          "required": ["password"]
+        }
+      ]
+    }
+  }
 }
