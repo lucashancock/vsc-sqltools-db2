@@ -32,33 +32,25 @@ SELECT count(1) AS total
 FROM ${(p) => p.table.label || p.table};
 `;
 
-const fetchTablesAndViews = (
-  type: ContextValue,
-  tableType = "table"
-): IBaseQueries["fetchTables"] => queryFactory`
-SELECT name AS label,
-  '${type}' AS type
-FROM sqlite_master
-WHERE LOWER(type) LIKE '${tableType.toLowerCase()}'
-  AND name NOT LIKE 'sqlite_%'
-ORDER BY name
+const fetchTables: IBaseQueries["fetchTables"] = queryFactory`
+SELECT DISTINCT NAME AS "label", CREATOR as "schema", '${
+  ContextValue.TABLE
+}' AS "type"
+FROM "SYSIBM"."SYSTABLES" where TYPE = 'T' and CREATOR = '${(p) => p.schema}';
 `;
 
-const fetchTables: IBaseQueries["fetchTables"] = fetchTablesAndViews(
-  ContextValue.TABLE
-);
-const fetchViews: IBaseQueries["fetchTables"] = fetchTablesAndViews(
-  ContextValue.VIEW,
-  "view"
-);
+const fetchViews: IBaseQueries["fetchTables"] = queryFactory`
+SELECT DISTINCT NAME AS "label", CREATOR as "schema", '${
+  ContextValue.VIEW
+}' AS "type"
+FROM "SYSIBM"."SYSTABLES" where TYPE = 'V' and CREATOR = '${(p) => p.schema}';
+`;
 
 const fetchSchemas: IBaseQueries["fetchSchemas"] = queryFactory`
   SELECT DISTINCT creator AS "label",
   creator as "schema",
   '${ContextValue.SCHEMA}' as "type",
-  'group-by-ref-type' as "iconId",
-  'test' as "database",
-  '${ContextValue.NO_CHILD}' as "childType"
+  'group-by-ref-type' as "iconId"
   FROM "SYSIBM"."SYSTABLES"
 `;
 

@@ -115,7 +115,11 @@ export default class Db2Driver
     let queriesResults = [];
     const rows: any[] = db.querySync(queries);
     console.log(rows);
-    if (rows.length === 0) return;
+    if (rows.length === 0) {
+      const nullres: NSDatabase.IResult[] = [];
+      console.log("here");
+      return nullres;
+    }
     const colnames = Object.keys(rows[0]);
     const resultsAgg: NSDatabase.IResult[] = [
       {
@@ -134,10 +138,6 @@ export default class Db2Driver
       },
     ];
 
-    /**
-     * write the method to execute queries here!!
-     */
-    console.log("Results Agg: ", resultsAgg);
     return resultsAgg;
   };
 
@@ -162,81 +162,47 @@ export default class Db2Driver
       case ContextValue.CONNECTION:
       case ContextValue.CONNECTED_CONNECTION:
         return this.queryResults(this.queries.fetchSchemas());
-        return <NSDatabase.IColumn[]>[
+      case ContextValue.TABLE:
+      case ContextValue.VIEW:
+      case ContextValue.MATERIALIZED_VIEW:
+      case ContextValue.DATABASE:
+        return <MConnectionExplorer.IChildItem[]>[
           {
-            database: "fakedb",
-            label: `schema`,
-            type: ContextValue.COLUMN,
-            dataType: "faketype",
-            schema: "fakeschema",
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: "column",
-            table: parent,
+            label: "Schemas",
+            type: ContextValue.RESOURCE_GROUP,
+            iconId: "folder",
+            childType: ContextValue.SCHEMA,
           },
         ];
-      // case ContextValue.TABLE:
-      // case ContextValue.VIEW:
-      //   let i = 0;
-      //   return <NSDatabase.IColumn[]>[
-      //     {
-      //       database: "fakedb",
-      //       label: `column${i++}`,
-      //       type: ContextValue.COLUMN,
-      //       dataType: "faketype",
-      //       schema: "fakeschema",
-      //       childType: ContextValue.NO_CHILD,
-      //       isNullable: false,
-      //       iconName: "column",
-      //       table: parent,
-      //     },
-      //     {
-      //       database: "fakedb",
-      //       label: `column${i++}`,
-      //       type: ContextValue.COLUMN,
-      //       dataType: "faketype",
-      //       schema: "fakeschema",
-      //       childType: ContextValue.NO_CHILD,
-      //       isNullable: false,
-      //       iconName: "column",
-      //       table: parent,
-      //     },
-      //     {
-      //       database: "fakedb",
-      //       label: `column${i++}`,
-      //       type: ContextValue.COLUMN,
-      //       dataType: "faketype",
-      //       schema: "fakeschema",
-      //       childType: ContextValue.NO_CHILD,
-      //       isNullable: false,
-      //       iconName: "column",
-      //       table: parent,
-      //     },
-      //     {
-      //       database: "fakedb",
-      //       label: `column${i++}`,
-      //       type: ContextValue.COLUMN,
-      //       dataType: "faketype",
-      //       schema: "fakeschema",
-      //       childType: ContextValue.NO_CHILD,
-      //       isNullable: false,
-      //       iconName: "column",
-      //       table: parent,
-      //     },
-      //     {
-      //       database: "fakedb",
-      //       label: `column${i++}`,
-      //       type: ContextValue.COLUMN,
-      //       dataType: "faketype",
-      //       schema: "fakeschema",
-      //       childType: ContextValue.NO_CHILD,
-      //       isNullable: false,
-      //       iconName: "column",
-      //       table: parent,
-      //     },
-      //   ];
-      // case ContextValue.RESOURCE_GROUP:
-      //   return this.getChildrenForGroup({ item, parent });
+      case ContextValue.RESOURCE_GROUP:
+        return this.getChildrenForGroup({ item, parent });
+      case ContextValue.SCHEMA:
+        return <MConnectionExplorer.IChildItem[]>[
+          {
+            label: "Tables",
+            type: ContextValue.RESOURCE_GROUP,
+            iconId: "folder",
+            childType: ContextValue.TABLE,
+          },
+          {
+            label: "Views",
+            type: ContextValue.RESOURCE_GROUP,
+            iconId: "folder",
+            childType: ContextValue.VIEW,
+          },
+          {
+            label: "Materialized Views",
+            type: ContextValue.RESOURCE_GROUP,
+            iconId: "folder",
+            childType: ContextValue.MATERIALIZED_VIEW,
+          },
+          {
+            label: "Functions",
+            type: ContextValue.RESOURCE_GROUP,
+            iconId: "folder",
+            childType: ContextValue.FUNCTION,
+          },
+        ];
     }
     return [];
   }
@@ -249,34 +215,28 @@ export default class Db2Driver
     parent,
     item,
   }: Arg0<IConnectionDriver["getChildrenForItem"]>) {
-    console.log("fun", { item, parent });
+    console.log({ item, parent });
     switch (item.childType) {
+      case ContextValue.SCHEMA:
+        return this.queryResults(
+          this.queries.fetchSchemas(parent as NSDatabase.IDatabase)
+        );
       case ContextValue.TABLE:
+        return this.queryResults(
+          this.queries.fetchTables(parent as NSDatabase.ISchema)
+        );
       case ContextValue.VIEW:
-        let i = 0;
-        return <MConnectionExplorer.IChildItem[]>[
-          {
-            database: "fakedb",
-            label: `${item.childType}${i++}`,
-            type: item.childType,
-            schema: "fakeschema",
-            childType: ContextValue.COLUMN,
-          },
-          {
-            database: "fakedb",
-            label: `${item.childType}${i++}`,
-            type: item.childType,
-            schema: "fakeschema",
-            childType: ContextValue.COLUMN,
-          },
-          {
-            database: "fakedb",
-            label: `${item.childType}${i++}`,
-            type: item.childType,
-            schema: "fakeschema",
-            childType: ContextValue.COLUMN,
-          },
-        ];
+        return this.queryResults(
+          this.queries.fetchViews(parent as NSDatabase.ISchema)
+        );
+      // case ContextValue.MATERIALIZED_VIEW:
+      //   return this.queryResults(
+      //     this.queries.fetchMaterializedViews(parent as NSDatabase.ISchema)
+      //   );
+      // case ContextValue.FUNCTION:
+      //   return this.queryResults(
+      //     this.queries.fetchFunctions(parent as NSDatabase.ISchema)
+      //   );
     }
     return [];
   }
