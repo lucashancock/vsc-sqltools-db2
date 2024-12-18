@@ -109,16 +109,47 @@ export default class Db2Driver
     queries,
     opt = {}
   ) => {
+    // TO-DO: handle non-successful queries
     const db: Database = await this.open();
     console.log("QUERY: ", queries);
-    if (typeof queries !== "string") return;
-    let queriesResults = [];
+    if (typeof queries !== "string") {
+      return [
+        <NSDatabase.IResult>{
+          connId: this.getId(),
+          requestId: opt.requestId,
+          resultId: generateId(),
+          cols: [],
+          messages: [
+            {
+              date: new Date(),
+              message: `Query should be of type string`,
+            },
+          ],
+          error: true,
+          query: queries.toString(),
+          results: [],
+        },
+      ];
+    }
     const rows: any[] = db.querySync(queries);
     console.log(rows);
     if (rows.length === 0) {
-      const nullres: NSDatabase.IResult[] = [];
-      console.log("here");
-      return nullres;
+      return [
+        <NSDatabase.IResult>{
+          connId: this.getId(),
+          requestId: opt.requestId,
+          resultId: generateId(),
+          cols: [],
+          messages: [
+            {
+              date: new Date(),
+              message: `No results returned.`,
+            },
+          ],
+          query: queries.toString(),
+          results: [],
+        },
+      ];
     }
     const colnames = Object.keys(rows[0]);
     const resultsAgg: NSDatabase.IResult[] = [
@@ -128,7 +159,7 @@ export default class Db2Driver
         messages: [
           {
             date: new Date(),
-            message: `Query ok with ${queriesResults.length} results`,
+            message: `Query ok with ${rows.length} results`,
           },
         ],
         results: rows,
@@ -162,20 +193,6 @@ export default class Db2Driver
       case ContextValue.CONNECTION:
       case ContextValue.CONNECTED_CONNECTION:
         return this.queryResults(this.queries.fetchSchemas());
-      case ContextValue.TABLE:
-      case ContextValue.VIEW:
-      case ContextValue.MATERIALIZED_VIEW:
-      case ContextValue.DATABASE:
-        return <MConnectionExplorer.IChildItem[]>[
-          {
-            label: "Schemas",
-            type: ContextValue.RESOURCE_GROUP,
-            iconId: "folder",
-            childType: ContextValue.SCHEMA,
-          },
-        ];
-      case ContextValue.RESOURCE_GROUP:
-        return this.getChildrenForGroup({ item, parent });
       case ContextValue.SCHEMA:
         return <MConnectionExplorer.IChildItem[]>[
           {
@@ -190,19 +207,38 @@ export default class Db2Driver
             iconId: "folder",
             childType: ContextValue.VIEW,
           },
+        ];
+      case ContextValue.TABLE:
+        return <MConnectionExplorer.IChildItem[]>[
           {
-            label: "Materialized Views",
+            label: "Column",
             type: ContextValue.RESOURCE_GROUP,
             iconId: "folder",
-            childType: ContextValue.MATERIALIZED_VIEW,
+            childType: ContextValue.COLUMN,
           },
           {
-            label: "Functions",
+            label: "Unique Constraints",
             type: ContextValue.RESOURCE_GROUP,
             iconId: "folder",
-            childType: ContextValue.FUNCTION,
+            childType: ContextValue.COLUMN,
+          },
+          {
+            label: "Foreign Keys",
+            type: ContextValue.RESOURCE_GROUP,
+            iconId: "folder",
+            childType: ContextValue.COLUMN,
+            ind: "fk",
           },
         ];
+      case ContextValue.VIEW:
+      case ContextValue.COLUMN:
+      // return this.queryResults(
+      //   this.queries.fetchColumns(item as NSDatabase.ITable)
+      // );
+      // return this.getColumns(item as NSDatabase.ITable);
+      case ContextValue.RESOURCE_GROUP:
+        console.log("here2");
+        return this.getChildrenForGroup({ item, parent });
     }
     return [];
   }
@@ -229,16 +265,57 @@ export default class Db2Driver
         return this.queryResults(
           this.queries.fetchViews(parent as NSDatabase.ISchema)
         );
-      // case ContextValue.MATERIALIZED_VIEW:
-      //   return this.queryResults(
-      //     this.queries.fetchMaterializedViews(parent as NSDatabase.ISchema)
-      //   );
-      // case ContextValue.FUNCTION:
-      //   return this.queryResults(
-      //     this.queries.fetchFunctions(parent as NSDatabase.ISchema)
-      //   );
+      case ContextValue.COLUMN:
+        if (item.label === "Column") {
+          return this.getColumns(parent as NSDatabase.ITable, "column");
+        }
+        if (item.label === "Unique Constraints") {
+          return this.getColumns(parent as NSDatabase.ITable, "constraints");
+        }
+        return this.getColumns(parent as NSDatabase.ITable, "fk");
+      case ContextValue.NO_CHILD:
     }
     return [];
+  }
+
+  private async getColumns(
+    parent: NSDatabase.ITable,
+    type: string
+  ): Promise<NSDatabase.IColumn[]> {
+    if (type === "column") {
+      const results = await this.queryResults(
+        this.queries.fetchColumns(parent)
+      );
+      console.log("RES: ", results);
+      return results.map((col) => ({
+        ...col,
+        iconName: col.isPk ? "pk" : col.isFk ? "fk" : null,
+        childType: ContextValue.NO_CHILD,
+        table: parent,
+      }));
+    }
+    if (type === "constraints") {
+      // TO-DO:
+      // implement primary key query
+      // const results = await this.queryResults(
+      //   this.queries.fetchPrimaryKeys(parent)
+      // );
+      // return results.map((col) => ({
+      //   ...col,
+      //   iconName: "pk",
+      //   childType: ContextValue.NO_CHILD,
+      //   table: parent,
+      // }));
+    }
+    const results = await this.queryResults(
+      this.queries.fetchForeignKeys(parent)
+    );
+    return results.map((col) => ({
+      ...col,
+      iconName: "fk",
+      childType: ContextValue.NO_CHILD,
+      table: parent,
+    }));
   }
 
   /**
