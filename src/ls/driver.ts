@@ -6,58 +6,19 @@ import {
   NSDatabase,
   ContextValue,
   Arg0,
+  // IQueryOptions,
+  // IExpectedResult,
+  // IQueryOptions,
 } from "@sqltools/types";
 import { v4 as generateId } from "uuid";
 import * as db2 from "ibm_db";
 import { Database } from "ibm_db";
-
-/**
- * set Driver lib to the type of your connection.
- * Eg for postgres:
- * import { Pool, PoolConfig } from 'pg';
- * ...
- * type DriverLib = Pool;
- * type DriverOptions = PoolConfig;
- *
- * This will give you completions iside of the library
- */
-// type Db2Lib = typeof db2.Database;
-// type Db2Options = any;
-
-/**
- * MOCKED DB DRIVER
- * THIS IS JUST AN EXAMPLE AND THE LINES BELOW SHOUDL BE REMOVED!
- */
-// import fakeDbLib from './mylib'; // this is what you should do
-// const fakeDbLib = {
-//   open: () => Promise.resolve(fakeDbLib),
-//   query: (..._args: any[]) => {
-//     const nResults = parseInt((Math.random() * 1000).toFixed(0));
-//     const nCols = parseInt((Math.random() * 100).toFixed(0));
-//     const colNames = [...new Array(nCols)].map((_, index) => `col${index}`);
-//     const generateRow = () => {
-//       const row = {};
-//       colNames.forEach((c) => {
-//         row[c] = Math.random() * 1000;
-//       });
-//       return row;
-//     };
-//     const results = [...new Array(nResults)].map(generateRow);
-//     return Promise.resolve([results]);
-//   },
-//   close: () => Promise.resolve(),
-// };
-
-/* LINES ABOVE CAN BE REMOVED */
+import keywordsCompletion from "./keywords";
 
 export default class Db2Driver
   extends AbstractDriver<any, any>
   implements IConnectionDriver
 {
-  /**
-   * If you driver depends on node packages, list it below on `deps` prop.
-   * It will be installed automatically on first use of your driver.
-   */
   public readonly deps: (typeof AbstractDriver.prototype)["deps"] = [
     {
       type: AbstractDriver.CONSTANTS.DEPENDENCY_PACKAGE,
@@ -68,19 +29,8 @@ export default class Db2Driver
 
   queries = queries;
 
-  /** if you need to require your lib in runtime and then
-   * use `this.lib.methodName()` anywhere and vscode will take care of the dependencies
-   * to be installed on a cache folder
-   **/
-  // private get lib() {
-  //   return this.requireDep('node-packge-name') as DriverLib;
-  // }
-
   public async open() {
-    if (this.connection) {
-      return this.connection;
-    }
-
+    if (this.connection) return this.connection;
     const db = this.credentials.database;
     const hostname = this.credentials.server;
     const port = this.credentials.port;
@@ -89,17 +39,13 @@ export default class Db2Driver
     const password = this.credentials.password;
     this.credentials.askForPassword = false;
     const connectionString = `DATABASE=${db};HOSTNAME=${hostname};PORT=${port};PROTOCOL=${protocol};UID=${username};PWD=${password}`;
-
     const conn = db2.open(connectionString);
     this.connection = conn;
-    console.log("OPEN");
     return this.connection;
   }
 
   public async close() {
     if (!this.connection) return Promise.resolve();
-
-    console.log("CLOSE");
     const conn = await this.connection;
     conn.close();
     this.connection = null;
@@ -109,51 +55,30 @@ export default class Db2Driver
     queries,
     opt = {}
   ) => {
-    // TO-DO: handle non-successful queries
     const db: Database = await this.open();
-    console.log("QUERY: ", queries);
-    if (typeof queries !== "string") {
+    const rows: NSDatabase.IResult | NSDatabase.IResult[] = db.querySync(
+      queries.toString()
+    );
+    if (rows.length === 0 || rows.error)
       return [
         <NSDatabase.IResult>{
           connId: this.getId(),
           requestId: opt.requestId,
           resultId: generateId(),
-          cols: [],
+          cols: ["Error"],
           messages: [
             {
               date: new Date(),
-              message: `Query should be of type string`,
-            },
-          ],
-          error: true,
-          query: queries.toString(),
-          results: [],
-        },
-      ];
-    }
-    const rows: any[] = db.querySync(queries);
-    console.log(rows);
-    if (rows.length === 0) {
-      return [
-        <NSDatabase.IResult>{
-          connId: this.getId(),
-          requestId: opt.requestId,
-          resultId: generateId(),
-          cols: [],
-          messages: [
-            {
-              date: new Date(),
-              message: `No results returned.`,
+              message: `No results returned or invalid query`,
             },
           ],
           query: queries.toString(),
-          results: [],
+          results: [{ Error: rows.error ? rows.message : "No query results." }],
         },
       ];
-    }
     const colnames = Object.keys(rows[0]);
-    const resultsAgg: NSDatabase.IResult[] = [
-      {
+    return [
+      <NSDatabase.IResult>{
         cols: colnames,
         connId: this.getId(),
         messages: [
@@ -168,23 +93,12 @@ export default class Db2Driver
         resultId: generateId(),
       },
     ];
-
-    return resultsAgg;
   };
 
-  /** if you need a different way to test your connection, you can set it here.
-   * Otherwise by default we open and close the connection only
-   */
   public async testConnection() {
     await this.open();
     await this.close();
-    // await this.query("SELECT 1", {});
   }
-
-  /**
-   * This method is a helper to generate the connection explorer tree.
-   * it gets the child items based on current item
-   */
   public async getChildrenForItem({
     item,
     parent,
@@ -213,29 +127,25 @@ export default class Db2Driver
           {
             label: "Column",
             type: ContextValue.RESOURCE_GROUP,
-            iconId: "folder",
+            iconId: "menu",
             childType: ContextValue.COLUMN,
           },
           {
             label: "Unique Constraints",
             type: ContextValue.RESOURCE_GROUP,
-            iconId: "folder",
+            iconId: "references",
             childType: ContextValue.COLUMN,
           },
           {
             label: "Foreign Keys",
             type: ContextValue.RESOURCE_GROUP,
-            iconId: "folder",
+            iconId: "references",
             childType: ContextValue.COLUMN,
             ind: "fk",
           },
         ];
       case ContextValue.VIEW:
       case ContextValue.COLUMN:
-      // return this.queryResults(
-      //   this.queries.fetchColumns(item as NSDatabase.ITable)
-      // );
-      // return this.getColumns(item as NSDatabase.ITable);
       case ContextValue.RESOURCE_GROUP:
         console.log("here2");
         return this.getChildrenForGroup({ item, parent });
@@ -295,17 +205,15 @@ export default class Db2Driver
       }));
     }
     if (type === "constraints") {
-      // TO-DO:
-      // implement primary key query
-      // const results = await this.queryResults(
-      //   this.queries.fetchPrimaryKeys(parent)
-      // );
-      // return results.map((col) => ({
-      //   ...col,
-      //   iconName: "pk",
-      //   childType: ContextValue.NO_CHILD,
-      //   table: parent,
-      // }));
+      const results = await this.queryResults(
+        this.queries.fetchPrimaryKeys(parent)
+      );
+      return results.map((col) => ({
+        ...col,
+        iconName: "pk",
+        childType: ContextValue.NO_CHILD,
+        table: parent,
+      }));
     }
     const results = await this.queryResults(
       this.queries.fetchForeignKeys(parent)
@@ -324,100 +232,28 @@ export default class Db2Driver
   public async searchItems(
     itemType: ContextValue,
     search: string,
-    _extraParams: any = {}
+    extraParams: any = {}
   ): Promise<NSDatabase.SearchableItem[]> {
+    console.log("EXTRA: ", extraParams);
     switch (itemType) {
       case ContextValue.TABLE:
       case ContextValue.VIEW:
-        let j = 0;
-        return [
-          {
-            database: "fakedb",
-            label: `${search || "table"}${j++}`,
-            type: itemType,
-            schema: "fakeschema",
-            childType: ContextValue.COLUMN,
-          },
-          {
-            database: "fakedb",
-            label: `${search || "table"}${j++}`,
-            type: itemType,
-            schema: "fakeschema",
-            childType: ContextValue.COLUMN,
-          },
-          {
-            database: "fakedb",
-            label: `${search || "table"}${j++}`,
-            type: itemType,
-            schema: "fakeschema",
-            childType: ContextValue.COLUMN,
-          },
-        ];
+        return this.queryResults(this.queries.searchTables({ search: search }));
       case ContextValue.COLUMN:
-        let i = 0;
-        return [
-          {
-            database: "fakedb",
-            label: `${search || "column"}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: "faketype",
-            schema: "fakeschema",
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: "column",
-            table: "fakeTable",
-          },
-          {
-            database: "fakedb",
-            label: `${search || "column"}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: "faketype",
-            schema: "fakeschema",
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: "column",
-            table: "fakeTable",
-          },
-          {
-            database: "fakedb",
-            label: `${search || "column"}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: "faketype",
-            schema: "fakeschema",
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: "column",
-            table: "fakeTable",
-          },
-          {
-            database: "fakedb",
-            label: `${search || "column"}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: "faketype",
-            schema: "fakeschema",
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: "column",
-            table: "fakeTable",
-          },
-          {
-            database: "fakedb",
-            label: `${search || "column"}${i++}`,
-            type: ContextValue.COLUMN,
-            dataType: "faketype",
-            schema: "fakeschema",
-            childType: ContextValue.NO_CHILD,
-            isNullable: false,
-            iconName: "column",
-            table: "fakeTable",
-          },
-        ];
+        return this.queryResults(
+          this.queries.searchColumns({ search, ...extraParams })
+        );
     }
     return [];
   }
 
-  public getStaticCompletions: IConnectionDriver["getStaticCompletions"] =
-    async () => {
-      return {};
-    };
+  private completionsCache: { [w: string]: NSDatabase.IStaticCompletion } =
+    null;
+  public getStaticCompletions = async () => {
+    if (this.completionsCache) return this.completionsCache;
+    // use default reserved words
+    this.completionsCache = keywordsCompletion;
+
+    return this.completionsCache;
+  };
 }
