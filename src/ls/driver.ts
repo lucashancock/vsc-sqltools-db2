@@ -38,7 +38,11 @@ export default class Db2Driver
     const username = this.credentials.username;
     const password = this.credentials.password;
     this.credentials.askForPassword = false;
-    const connectionString = `DATABASE=${db};HOSTNAME=${hostname};PORT=${port};PROTOCOL=${protocol};UID=${username};PWD=${password}`;
+    const filepath = this.credentials.file;
+    let connectionString = `DATABASE=${db};HOSTNAME=${hostname};PORT=${port};PROTOCOL=${protocol};UID=${username};PWD=${password};`;
+    if (filepath && filepath.length !== 0) {
+      connectionString += `Security=SSL;SSLServerCertificate=${filepath}`;
+    }
     const conn = db2.open(connectionString);
     this.connection = conn;
     return this.connection;
@@ -55,13 +59,21 @@ export default class Db2Driver
     queries,
     opt = {}
   ) => {
+    const qs = queries.toString();
+    const queryList = qs
+      .split(";")
+      .map((query) => query.trim())
+      .filter((query) => query.length > 0);
+    const queryResults: any[] = [];
     const db: Database = await this.open();
-    const rows: NSDatabase.IResult | NSDatabase.IResult[] = db.querySync(
-      queries.toString()
-    );
-    if (rows.length === 0 || rows.error)
-      return [
-        <NSDatabase.IResult>{
+    queryList.forEach(async (query) => {
+      queryResults.push(db.querySync(query));
+    });
+    console.log("QUERY LIST: ", queryList);
+    return queryResults.map((result, i): NSDatabase.IResult => {
+      console.log("QUERY: ", queryList[i]);
+      if (result.length === 0 || result.error)
+        return {
           connId: this.getId(),
           requestId: opt.requestId,
           resultId: generateId(),
@@ -72,27 +84,29 @@ export default class Db2Driver
               message: `No results returned or invalid query`,
             },
           ],
-          query: queries.toString(),
-          results: [{ Error: rows.error ? rows.message : "No query results." }],
-        },
-      ];
-    const colnames = Object.keys(rows[0]);
-    return [
-      <NSDatabase.IResult>{
+          error: true,
+          rawError: result.error,
+          query: queryList[i],
+          results: [
+            { Error: result.error ? result.message : "No query results." },
+          ],
+        };
+      const colnames = Object.keys(result[0]);
+      return {
         cols: colnames,
         connId: this.getId(),
         messages: [
           {
             date: new Date(),
-            message: `Query ok with ${rows.length} results`,
+            message: `Query ok with ${result.length} results`,
           },
         ],
-        results: rows,
-        query: queries.toString(),
+        results: result,
+        query: queryList[i],
         requestId: opt.requestId,
         resultId: generateId(),
-      },
-    ];
+      };
+    });
   };
 
   public async testConnection() {

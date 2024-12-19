@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Configuration",
   "type": "object",
   "definitions": {
     "username": {
@@ -30,6 +31,10 @@
     }
   },
   "properties": {
+    "file": {
+      "type": "string",
+      "title": "SSL Certificate (leave blank if not needed)"
+    },
     "connectionMethod": {
       "title": "Connect using",
       "type": "string",
