@@ -69,9 +69,9 @@ export default class Db2Driver
     queryList.forEach(async (query) => {
       queryResults.push(db.querySync(query));
     });
-    console.log("QUERY LIST: ", queryList);
+    // console.log("QUERY LIST: ", queryList);
     return queryResults.map((result, i): NSDatabase.IResult => {
-      console.log("QUERY: ", queryList[i]);
+      // console.log("QUERY: ", queryList[i]);
       if (result.length === 0 || result.error)
         return {
           connId: this.getId(),
@@ -161,7 +161,7 @@ export default class Db2Driver
       case ContextValue.VIEW:
       case ContextValue.COLUMN:
       case ContextValue.RESOURCE_GROUP:
-        console.log("here2");
+        // console.log("here2");
         return this.getChildrenForGroup({ item, parent });
     }
     return [];
@@ -175,7 +175,7 @@ export default class Db2Driver
     parent,
     item,
   }: Arg0<IConnectionDriver["getChildrenForItem"]>) {
-    console.log({ item, parent });
+    // console.log({ item, parent });
     switch (item.childType) {
       case ContextValue.SCHEMA:
         return this.queryResults(
@@ -210,7 +210,7 @@ export default class Db2Driver
       const results = await this.queryResults(
         this.queries.fetchColumns(parent)
       );
-      console.log("RES: ", results);
+      // console.log("RES: ", results);
       return results.map((col) => ({
         ...col,
         iconName: col.isPk ? "pk" : col.isFk ? "fk" : null,
@@ -248,7 +248,7 @@ export default class Db2Driver
     search: string,
     extraParams: any = {}
   ): Promise<NSDatabase.SearchableItem[]> {
-    console.log("EXTRA: ", extraParams);
+    // console.log("EXTRA: ", extraParams);
     switch (itemType) {
       case ContextValue.TABLE:
       case ContextValue.VIEW:

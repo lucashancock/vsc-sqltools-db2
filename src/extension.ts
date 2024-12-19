@@ -57,36 +57,9 @@ export async function activate(
   return {
     driverName: displayName,
     parseBeforeSaveConnection: ({ connInfo }) => {
-      /**
-       * This hook is called before saving the connection using the assistant
-       * so you can do any transformations before saving it to disk.active
-       * EG: relative file path transformation, string manipulation etc
-       * Below is the exmaple for SQLite, where we save the DB path relative to workspace
-       * and later we transform it back to absolute before editing
-       */
-      // if (path.isAbsolute(connInfo.database)) {
-      //   const databaseUri = Uri.file(connInfo.database);
-      //   const dbWorkspace = workspace.getWorkspaceFolder(databaseUri);
-      //   if (dbWorkspace) {
-      //     connInfo.database = `\$\{workspaceFolder:${dbWorkspace.name}\}/${workspace.asRelativePath(connInfo.database, false)}`;
-      //   }
-      // }
       return connInfo;
     },
     parseBeforeEditConnection: ({ connInfo }) => {
-      /**
-       * This hook is called before editing the connection using the assistant
-       * so you can do any transformations before editing it.
-       * EG: absolute file path transformation, string manipulation etc
-       * Below is the exmaple for SQLite, where we use relative path to save,
-       * but we transform to asolute before editing
-       */
-      // if (!path.isAbsolute(connInfo.database) && /\$\{workspaceFolder:(.+)}/g.test(connInfo.database)) {
-      //   const workspaceName = connInfo.database.match(/\$\{workspaceFolder:(.+)}/)[1];
-      //   const dbWorkspace = workspace.workspaceFolders.find(w => w.name === workspaceName);
-      //   if (dbWorkspace)
-      //     connInfo.database = path.resolve(dbWorkspace.uri.fsPath, connInfo.database.replace(/\$\{workspaceFolder:(.+)}/g, './'));
-      // }
       return connInfo;
     },
     driverAliases: DRIVER_ALIASES,
