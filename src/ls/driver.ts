@@ -69,10 +69,23 @@ export default class Db2Driver
     queryList.forEach(async (query) => {
       queryResults.push(db.querySync(query));
     });
-    // console.log("QUERY LIST: ", queryList);
     return queryResults.map((result, i): NSDatabase.IResult => {
-      // console.log("QUERY: ", queryList[i]);
-      if (result.length === 0 || result.error)
+      if (result.length === 0)
+        return {
+          connId: this.getId(),
+          requestId: opt.requestId,
+          resultId: generateId(),
+          cols: [],
+          messages: [
+            {
+              date: new Date(),
+              message: `No results returned or invalid query`,
+            },
+          ],
+          query: queryList[i],
+          results: [],
+        };
+      if (result.error)
         return {
           connId: this.getId(),
           requestId: opt.requestId,
@@ -84,13 +97,12 @@ export default class Db2Driver
               message: `No results returned or invalid query`,
             },
           ],
-          error: true,
-          rawError: result.error,
+          // error: true,
+          // rawError: result.error,
           query: queryList[i],
-          results: [
-            { Error: result.error ? result.message : "No query results." },
-          ],
+          results: [{ Error: result.message }],
         };
+
       const colnames = Object.keys(result[0]);
       return {
         cols: colnames,
@@ -211,23 +223,30 @@ export default class Db2Driver
         this.queries.fetchColumns(parent)
       );
       // console.log("RES: ", results);
-      return results.map((col) => ({
-        ...col,
-        iconName: col.isPk ? "pk" : col.isFk ? "fk" : null,
-        childType: ContextValue.NO_CHILD,
-        table: parent,
-      }));
+      if (results)
+        return results.map((col) => ({
+          ...col,
+          iconName: col.isPk ? "pk" : col.isFk ? "fk" : null,
+          childType: ContextValue.NO_CHILD,
+          table: parent,
+        }));
     }
     if (type === "constraints") {
       const results = await this.queryResults(
         this.queries.fetchPrimaryKeys(parent)
       );
-      return results.map((col) => ({
-        ...col,
-        iconName: "pk",
-        childType: ContextValue.NO_CHILD,
-        table: parent,
-      }));
+      console.log("RES:", results);
+      if (results) {
+        // console.log("resss");
+        return results.map((col) => ({
+          ...col,
+          iconName: "pk",
+          childType: ContextValue.NO_CHILD,
+          table: parent,
+        }));
+      }
+      console.log("empty");
+      return [<NSDatabase.IColumn>{}];
     }
     const results = await this.queryResults(
       this.queries.fetchForeignKeys(parent)
